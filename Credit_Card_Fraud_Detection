@@ -1,0 +1,57 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from imblearn.over_sampling import SMOTE
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, roc_auc_score
+import warnings
+
+warnings.filterwarnings("ignore")
+
+# Step 1: Load Data
+data = pd.read_csv('creditcard.csv')  # Replace with your dataset path
+
+# Step 2: Preprocessing
+# Drop columns with excessive missing values (if any)
+data.dropna(axis=1, inplace=True)
+
+# Features and target separation
+X = data.drop('Class', axis=1)  # 'Class' is the target (0 = genuine, 1 = fraud)
+y = data['Class']
+
+# Feature Scaling
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Step 3: Handle Class Imbalance using SMOTE
+smote = SMOTE(random_state=42)
+X_resampled, y_resampled = smote.fit_resample(X_scaled, y)
+
+# Step 4: Split dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X_resampled, y_resampled, test_size=0.2, random_state=42, stratify=y_resampled
+)
+
+# Step 5: Model Training
+rf_model = RandomForestClassifier(n_estimators=150, max_depth=10, random_state=42)
+rf_model.fit(X_train, y_train)
+
+# Step 6: Model Evaluation
+y_pred = rf_model.predict(X_test)
+print("Classification Report:\n", classification_report(y_test, y_pred))
+
+# ROC-AUC Score
+roc_auc = roc_auc_score(y_test, rf_model.predict_proba(X_test)[:, 1])
+print(f"ROC-AUC Score: {roc_auc:.2f}")
+
+# Feature Importance
+import matplotlib.pyplot as plt
+
+feature_importances = rf_model.feature_importances_
+features = data.drop('Class', axis=1).columns
+
+plt.figure(figsize=(12, 6))
+plt.title("Feature Importances - Random Forest")
+plt.barh(features, feature_importances, color='dodgerblue')
+plt.show()
